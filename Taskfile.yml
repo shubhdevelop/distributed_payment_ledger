@@ -1,0 +1,28 @@
+# yaml-language-server: $schema=https://taskfile.dev/schema.json
+
+version: "3"
+
+vars:
+  GREETING: Hello, world!
+
+tasks:
+  default:
+    desc: Print a greeting message
+    cmds:
+      - echo "{{.GREETING}}"
+    silent: true
+  build:
+    desc: Build the go binary
+    cmds:
+      - go build -o ./target/build ./cmd/main.go
+    silent: false
+  run:
+    desc: Runs the binary
+    cmds:
+      - go run ./cmd/main.go
+    silent: false
+  run-build:
+    desc: Runs the binary
+    cmds:
+      - ./target/build
+    silent: false
