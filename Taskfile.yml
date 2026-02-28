@@ -14,15 +14,20 @@ tasks:
   build:
     desc: Build the go binary
     cmds:
-      - go build -o ./target/build ./cmd/main.go
+      - go build -o ./target/main ./cmd/main.go
     silent: false
-  run:
+  dev:
     desc: Runs the binary
     cmds:
-      - go run ./cmd/main.go
+      - air
     silent: false
-  run-build:
+  start:
     desc: Runs the binary
     cmds:
       - ./target/build
+    silent: false
+  valkey:
+    desc: Runing valkey at port 6379
+    cmds:
+      - valkey-server
     silent: false

@@ -1,0 +1,4 @@
+tmp/
+.env
+dump.rdb
+*.db
