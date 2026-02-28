@@ -53,6 +53,47 @@ type Result struct {
 	Status  int64
 	Code    string
 	Balance int64
+	LastID  string
+}
+
+func TransferCredits(ctx context.Context, client *glide.Client, fromKey, toKey, idempotencyKey, streamKey, amt, txnID, senderUserID, reciverUserID string) (*Result, error) {
+	val, err := client.FCallWithKeysAndArgs(ctx, "transferCredits", []string{fromKey, toKey, idempotencyKey, streamKey}, []string{amt, txnID, senderUserID, reciverUserID})
+	if err != nil {
+		log.Printf("err execeuting transfer %v credits from this user %v to %v user %v", amt, fromKey, toKey, err)
+		return &Result{}, err
+	}
+
+	arr, ok := val.([]any)
+	if !ok {
+		log.Fatalf("unexpected type: %T", val)
+	}
+	result := &Result{}
+
+	// Safe parsing
+	if status, ok := arr[0].(int64); ok {
+		result.Status = status
+	} else {
+		return nil, fmt.Errorf("invalid status type")
+	}
+
+	if code, ok := arr[1].(string); ok {
+		result.Code = code
+	} else {
+		return nil, fmt.Errorf("invalid code type")
+	}
+
+	if len(arr) >= 3 {
+		if balance, ok := arr[2].(int64); ok {
+			result.Balance = balance
+		}
+	}
+
+	if len(arr) >= 4 {
+		if lastID, ok := arr[3].(string); ok {
+			result.LastID = lastID
+		}
+	}
+	return result, nil
 }
 
 func DeductCredits(ctx context.Context, client *glide.Client, balKey, idempotencyKey, streamKey, amt, txnID, userID string) (*Result, error) {
@@ -75,7 +116,7 @@ func DeductCredits(ctx context.Context, client *glide.Client, balKey, idempotenc
 		balance = arr[2].(int64)
 	}
 	return &Result{
-		status, code, balance,
+		status, code, balance, "0",
 	}, nil
 }
 
@@ -99,7 +140,7 @@ func AddCredits(ctx context.Context, client *glide.Client, balKey, idempotencyKe
 		balance = arr[2].(int64)
 	}
 	return &Result{
-		status, code, balance,
+		status, code, balance, "0",
 	}, nil
 }
 
@@ -133,6 +174,6 @@ func GetBalance(ctx context.Context, client *glide.Client, balKey string) (*Resu
 		balance = arr[2].(int64)
 	}
 	return &Result{
-		status, code, balance,
+		status, code, balance, "0",
 	}, nil
 }
