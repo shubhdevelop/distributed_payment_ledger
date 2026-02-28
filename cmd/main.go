@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/shubhdevelop/distributed_payment_ledger/internal/valkey"
+	"github.com/valkey-io/valkey-glide/go/v2/options"
 )
 
 func main() {
@@ -50,24 +51,35 @@ func main() {
 			}
 			fmt.Println(keysAndIds)
 
+			opts := options.NewXRangeOptions()
 			ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
 			defer cancel()
-			resp, err := valkeyClient.XRead(ctx, keysAndIds)
+			resp, err := valkeyClient.XRangeWithOptions(ctx, "transfer:response", options.StreamBoundary(val.LastID), options.StreamBoundary(val.LastID), *opts)
 			if err != nil {
 				log.Fatal(err)
 			}
-			// for stream, data := range resp {
-			// 	fmt.Println("Stream:", stream)
+			found := false
+			for _, entry := range resp {
+				for _, field := range entry.Fields {
+					if field.Field == "txnId" && field.Value == txnID {
+						found = true
+						fmt.Println("Matched Entry ID:", entry.ID)
+						fmt.Println("Matched Entry Fields:", entry.Fields)
+						break
+					}
+				}
+				if found {
+					break
+				}
+			}
 
-			// 	for _, entry := range data.Entries {
-			// 		fmt.Println("ID:", entry.ID)
-			// 		fmt.Println("Fields:", entry.Fields)
-			// 	}
-			// }
-			fmt.Println(resp)
-			_, err = w.Write([]byte("hello transfered!!"))
-			if err != nil {
-				fmt.Printf("error while writing to the r.Writer: %w", err)
+			if found {
+				_, err = w.Write([]byte("hello transferred!!"))
+				if err != nil {
+					fmt.Printf("error while writing to the r.Writer: %v", err)
+				}
+			} else {
+				w.Write([]byte("Transaction ID not found in response"))
 			}
 		}
 	})

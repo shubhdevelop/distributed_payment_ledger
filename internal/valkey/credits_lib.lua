@@ -23,7 +23,7 @@ local function deductCredits(keys, args)
 	end
 
 	local new_balance = server.call("DECRBY", balKey, amt)
-	server.call("XADD", streamKey, "*", "user_id", user_id, "amount", -amt, "type", "deduct", "tx_id", txn_id)
+	server.call("XADD", streamKey, "*", "user_id", user_id, "amount", -amt, "type", "deduct", "txn_id", txn_id)
 	server.call("SETEX", idempotency_key, 86400, "OK")
 	return { 1, "DEDUCTED", new_balance }
 end
@@ -67,7 +67,7 @@ local function transferCredits(keys, args)
 		-amt,
 		"type",
 		"deduct",
-		"tx_id",
+		"txn_id",
 		txn_id
 	)
 	server.call(
@@ -80,7 +80,7 @@ local function transferCredits(keys, args)
 		amt,
 		"type",
 		"allot",
-		"tx_id",
+		"txn_id",
 		txn_id
 	)
 	local lastId = server.call(
@@ -95,7 +95,7 @@ local function transferCredits(keys, args)
 		-amt,
 		"type",
 		"transfer",
-		"tx_id",
+		"txn_id",
 		txn_id
 	)
 
@@ -122,7 +122,7 @@ local function addCredits(keys, args)
 	end
 
 	local new_balance = server.call("INCRBY", balKey, amt)
-	server.call("XADD", streamKey, "*", "user_id", user_id, "amount", amt, "type", "allot", "tx_id", txn_id)
+	server.call("XADD", streamKey, "*", "user_id", user_id, "amount", amt, "type", "allot", "txn_id", txn_id)
 	server.call("SETEX", idempotency_key, 86400, "OK")
 	return { 1, "ALLOTED", new_balance }
 end
