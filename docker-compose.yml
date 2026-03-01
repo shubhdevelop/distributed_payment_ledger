@@ -1,0 +1,48 @@
+services:
+  app:
+    platform: linux/amd64
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "8080:8080"
+    volumes:
+      - .:/app
+      - /app/tmp
+    depends_on:
+      - valkey
+      - mongo
+    networks:
+      - credits_net
+
+  valkey:
+    image: bitnami/valkey:latest
+    container_name: valkey_server
+    ports:
+      - "6379:6379"
+    environment:
+      - ALLOW_EMPTY_PASSWORD=yes
+    volumes:
+      - "valkey_data:/bitnami/valkey/data"
+    networks:
+      - credits_net
+
+  mongo:
+    image: mongo:latest
+    container_name: mongodb
+    restart: unless-stopped
+    ports: ["27017:27017"]
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: rootuser
+      MONGO_INITDB_ROOT_PASSWORD: rootpassword
+    volumes:
+      - mongodb-data:/data/db
+    networks:
+      - credits_net
+
+volumes:
+  mongodb-data:
+  valkey_data:
+
+networks:
+  credits_net:
