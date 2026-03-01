@@ -3,10 +3,11 @@ package handlers
 
 import (
 	"context"
-	"fmt"
+	"encoding/json"
 	"net/http"
+	"strconv"
 
-	creditCache "github.com/shubhdevelop/distributed_payment_ledger/internal/cache/credits"
+	"github.com/shubhdevelop/distributed_payment_ledger/internal/services"
 	glide "github.com/valkey-io/valkey-glide/go/v2"
 	"go.mongodb.org/mongo-driver/mongo"
 )
@@ -23,33 +24,45 @@ func NewCreditHandler(db *mongo.Client, cache *glide.Client) *CreditHandler {
 	}
 }
 
+type Response struct {
+	Status  uint8  `json:"status"`
+	Message string `json:"message"`
+}
+
 func (h *CreditHandler) TransferHandler(ctx context.Context, w http.ResponseWriter,
 	r *http.Request,
 ) {
 	idempotencyKey := r.URL.Query().Get("IKey")
 	txnID := r.URL.Query().Get("tnxID")
-	amount := r.URL.Query().Get("amt")
-	from := r.URL.Query().Get("from")
-	to := r.URL.Query().Get("to")
-
-	senderKey := "uid:" + from + ":credits"
-	recieverKey := "uid:" + to + ":credits"
-
-	cache := creditCache.NewCreditCache(h.cache)
-	val, err := cache.TransferCredits(ctx,
-		senderKey, recieverKey, idempotencyKey,
-		"transfer:response", amount, txnID, from, to,
-	)
+	amount, err := strconv.Atoi(r.URL.Query().Get("amt"))
 	if err != nil {
-		w.Write([]byte("Error transferring the credits"))
+		http.Error(w, "The amount must be a valid integer", http.StatusBadRequest)
+		return
+	}
+	senderID := r.URL.Query().Get("from")
+	recieverID := r.URL.Query().Get("to")
+
+	creditService := services.NewCreditServce(h.db, h.cache)
+	val, err := creditService.TransferCredits(ctx, amount, senderID, recieverID, idempotencyKey, "payment:response", txnID)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+	if val == nil {
+		http.Error(w, "empty transfer result", http.StatusInternalServerError)
+		return
 	}
 
-	fmt.Println(val)
-
-	switch val.Code {
-	case "ALREADY_PROCESSED":
-		w.Write([]byte("The transaction is already processed for this trnasaction ID "))
-	case "TRANSFERRED":
-
+	w.Header().Set("Content-Type", "application/json")
+	res, err := json.Marshal(Response{
+		Status:  200,
+		Message: "Transferred Succesfull",
+	})
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	if val.Code == "TRANSFERRED" {
+		w.Write([]byte(res))
 	}
 }
