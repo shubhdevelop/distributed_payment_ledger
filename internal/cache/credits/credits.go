@@ -51,10 +51,10 @@ func LoadValkeyScripts(ctx context.Context, client *glide.Client) error {
 	return nil
 }
 
-func (c *CreditCache) TransferCredits(ctx context.Context, fromKey, toKey, idempotencyKey, streamKey, amt, txnID, senderUserID, reciverUserID string) (*CacheResult, error) {
-	val, err := c.cache.FCallWithKeysAndArgs(ctx, "transferCredits", []string{fromKey, toKey, idempotencyKey, streamKey}, []string{amt, txnID, senderUserID, reciverUserID})
+func (c *CreditCache) TransferCredits(ctx context.Context, amount int, fromKey, toKey, idempotencyKey, streamKey, txnID, senderUserID, reciverUserID string) (*CacheResult, error) {
+	val, err := c.cache.FCallWithKeysAndArgs(ctx, "transferCredits", []string{fromKey, toKey, idempotencyKey, streamKey}, []string{string(amount), txnID, senderUserID, reciverUserID})
 	if err != nil {
-		log.Printf("err execeuting transfer %v credits from this user %v to %v user %v", amt, fromKey, toKey, err)
+		log.Printf("err execeuting transfer %v credits from this user %v to %v user %v", amount, fromKey, toKey, err)
 		return &CacheResult{}, err
 	}
 
@@ -64,7 +64,6 @@ func (c *CreditCache) TransferCredits(ctx context.Context, fromKey, toKey, idemp
 	}
 	result := &CacheResult{}
 
-	// Safe parsing
 	if status, ok := arr[0].(int64); ok {
 		result.Status = status
 	} else {
