@@ -26,14 +26,9 @@ func NewCreditHandler(db *mongo.Client, cache *glide.Client) *CreditHandler {
 }
 
 type Response struct {
-	Status  uint8
-	Message string
+	Status  uint8  `json:"status"`
+	Message string `json:"message"`
 }
-
-/*
-TransferHandler
-TODO: in the handler add check for valid amount: shuld be integer
-*/
 
 func (h *CreditHandler) TransferHandler(ctx context.Context, w http.ResponseWriter,
 	r *http.Request,
