@@ -5,6 +5,8 @@ import (
 	"context"
 	"fmt"
 	"net/http"
+	"os"
+	"strconv"
 
 	creditCache "github.com/shubhdevelop/distributed_payment_ledger/internal/cache/credits"
 	"github.com/shubhdevelop/distributed_payment_ledger/internal/cache/valkey"
@@ -32,21 +34,21 @@ func main() {
 
 	creditWorkerContext, cancel := context.WithCancel(context.Background())
 	defer cancel()
-	workerValkeyClient1, err := valkey.ValkeyInit(ctx, "valkey", 6379)
+
+	workerCount, err := strconv.Atoi(os.Getenv("WORKER_COUNT"))
 	if err != nil {
-		fmt.Printf("Error connecting worker1 to Valkey: %w", err)
-	}
-	workerValkeyClient2, err := valkey.ValkeyInit(ctx, "valkey", 6379)
-	if err != nil {
-		fmt.Printf("Error connecting worker2 to Valkey: %w", err)
+		fmt.Println("worker count is not defined defaulting to single worker")
+		workerCount = 1
 	}
 
-	creditWorker1 := workers.NewWorker(mongoClient, workerValkeyClient1)
-	creditWorker2 := workers.NewWorker(mongoClient, workerValkeyClient2)
-
-	go creditWorker1.StartWorker(creditWorkerContext, "credits-worker-1")
-	go creditWorker2.StartWorker(creditWorkerContext, "credits-worker-2")
-
+	for i := range workerCount {
+		workerValkeyClient, err := valkey.ValkeyInit(ctx, "valkey", 6379)
+		if err != nil {
+			fmt.Printf("Error connecting worker%d to Valkey: %v", i, err)
+		}
+		creditWorker2 := workers.NewWorker(mongoClient, workerValkeyClient)
+		go creditWorker2.StartWorker(creditWorkerContext, "credits-worker-"+strconv.Itoa(i))
+	}
 	router := http.NewServeMux()
 	router.HandleFunc("POST /transfer", func(w http.ResponseWriter, r *http.Request) {
 		creditHandler := handlers.NewCreditHandler(mongoClient, valkeyClient)

@@ -49,7 +49,7 @@ func (s *CreditService) TransferCredits(
 	case "CACHE_MISS_RECIEVER":
 		return nil, fmt.Errorf("reciver: %s missing in the cahce", recieverID)
 	case "INSUFFICIENT_BALANCE":
-		return nil, fmt.Errorf("sender: %s has insufficient balance for transfer of amount: %d", senderID, amount)
+		return nil, fmt.Errorf("sender: %s has insufficient balance for transfer of amount: %s", senderID, amount)
 	case "TRANSFERRED":
 		// Successful transfer
 		return val, nil
