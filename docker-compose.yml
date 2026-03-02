@@ -10,8 +10,8 @@ services:
       - .:/app
       - /app/tmp
     environment:
-      - STREAM_KEY="credit:transaction:events"
-      - CONSUMER_GROUP="credit-transaction-worker"
+      - STREAM_KEY=credit:transaction:events
+      - CONSUMER_GROUP=credit-transaction-worker
     depends_on:
       - valkey
       - mongo
@@ -34,7 +34,7 @@ services:
     image: mongo:latest
     container_name: mongodb
     restart: unless-stopped
-    ports: ["27017:27017"]
+    ports: [ "27017:27017" ]
     environment:
       MONGO_INITDB_ROOT_USERNAME: rootuser
       MONGO_INITDB_ROOT_PASSWORD: rootpassword
@@ -46,6 +46,7 @@ services:
 volumes:
   mongodb-data:
   valkey_data:
+
 
 networks:
   credits_net:

@@ -33,7 +33,7 @@ func (s *CreditService) TransferCredits(
 	val, err := cache.TransferCredits(
 		ctx, amount,
 		senderKey, recieverKey, idempotencyKey,
-		"transfer:response", txnID, senderID, recieverID,
+		streamKey, txnID, senderID, recieverID,
 	)
 	if err != nil {
 		return nil, fmt.Errorf("error processing the transfer: %w", err)

@@ -43,22 +43,28 @@ func (w *Worker) StartWorker(ctx context.Context, consumerName string) {
 	if err != nil {
 		fmt.Printf("Info: consumer might already exist: %v\n", err)
 	}
-	select {
-	case <-ctx.Done():
-		fmt.Println("Stopping consumer...")
-		return
-	default:
-		stream, err := w.stream.XReadGroupWithOptions(ctx, consumeGroup, consumerName, map[string]string{
-			streamKey: ">",
-		}, opts)
-		if err != nil {
-			fmt.Printf("error reading the %s stream for consumer Group: %s by worker: %s, error: %v", streamKey, consumeGroup, consumerName,
-				err)
-		}
+	for {
+		select {
+		case <-ctx.Done():
+			fmt.Println("Stopping consumer...")
+			return
+		default:
+			stream, err := w.stream.XReadGroupWithOptions(ctx, consumeGroup, consumerName, map[string]string{
+				streamKey: ">",
+			}, opts)
+			if err != nil {
+				fmt.Printf("error reading the %s stream for consumer Group: %s by worker: %s, error: %v\n", streamKey, consumeGroup, consumerName,
+					err)
+				time.Sleep(1 * time.Second) // Prevent tight loop on error
+				continue
+			}
 
-		for _, val := range stream {
-			for _, entry := range val.Entries {
-				fmt.Println(entry.Fields, ":", consumerName)
+			if len(stream) > 0 {
+				for _, val := range stream {
+					for _, entry := range val.Entries {
+						fmt.Println("NEW MESSAGE RECEIVED ->", entry.Fields, ":", consumerName)
+					}
+				}
 			}
 		}
 	}
