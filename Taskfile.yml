@@ -24,6 +24,12 @@ tasks:
       - docker compose up -d
     silent: true
 
+  logs:
+    desc: Runs the binary
+    cmds:
+      - docker compose logs -f app
+    silent: false
+
   vc:
     desc: Runs the valkey-cli
     cmds:

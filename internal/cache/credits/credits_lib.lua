@@ -43,14 +43,29 @@ local function transferCredits(keys, args)
 		return { 1, "ALREADY_PROCESSED" }
 	end
 
+	local SenderMiss = false
+	local ReceiverMiss = false
 	local sender_balance = server.call("GET", fromKey)
 	if not sender_balance then
-		return { -1, "CACHE_MISS" }
+		SenderMiss = true
 	end
 	local reciever_balance = server.call("GET", toKey)
 	if not reciever_balance then
-		return { -1, "CACHE_MISS" }
+		ReceiverMiss = true
 	end
+
+	if SenderMiss and ReceiverMiss then
+		return { -1, "CACHE_MISS_BOTH" }
+	end
+
+	if SenderMiss then
+		return { -1, "CACHE_MISS_SENDER" }
+	end
+
+	if ReceiverMiss then
+		return { -1, "CACHE_MISS_RECIEVER" }
+	end
+
 	if tonumber(sender_balance) < amt then
 		return { -2, "INSUFFICIENT_BALANCE" }
 	end

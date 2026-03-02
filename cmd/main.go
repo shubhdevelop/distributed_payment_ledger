@@ -6,10 +6,10 @@ import (
 	"fmt"
 	"net/http"
 
+	creditCache "github.com/shubhdevelop/distributed_payment_ledger/internal/cache/credits"
+	"github.com/shubhdevelop/distributed_payment_ledger/internal/cache/valkey"
 	"github.com/shubhdevelop/distributed_payment_ledger/internal/db"
-	creditHanlder "github.com/shubhdevelop/distributed_payment_ledger/internal/handlers"
-	"github.com/shubhdevelop/distributed_payment_ledger/internal/valkey"
-	"go.mongodb.org/mongo-driver/mongo/readpref"
+	"github.com/shubhdevelop/distributed_payment_ledger/internal/handlers"
 )
 
 func main() {
@@ -24,15 +24,15 @@ func main() {
 		fmt.Printf("Error connecting to MongoDb: %w", err)
 	}
 
-	mongoClient.Ping(context.Background(), readpref.PrimaryPreferred())
-
-	err = valkey.LoadValkeyScripts(ctx, valkeyClient)
+	err = creditCache.LoadValkeyScripts(ctx, valkeyClient)
 	if err != nil {
 		fmt.Printf("Error loading scripts to Valkey: %w", err)
 	}
+
 	router := http.NewServeMux()
 	router.HandleFunc("POST /transfer", func(w http.ResponseWriter, r *http.Request) {
-		creditHanlder.TransferHandler(ctx, valkeyClient, w, r)
+		creditHandler := handlers.NewCreditHandler(mongoClient, valkeyClient)
+		creditHandler.TransferHandler(ctx, w, r)
 	})
 
 	err = http.ListenAndServe(":8080", router)

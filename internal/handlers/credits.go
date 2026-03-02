@@ -1,73 +1,68 @@
-// Package creditHandler
-package creditHanlder
+// Package handlers
+package handlers
 
 import (
 	"context"
-	"fmt"
-	"log"
+	"encoding/json"
 	"net/http"
-	"time"
+	"strconv"
 
-	"github.com/shubhdevelop/distributed_payment_ledger/internal/valkey"
+	"github.com/shubhdevelop/distributed_payment_ledger/internal/services"
 	glide "github.com/valkey-io/valkey-glide/go/v2"
-	"github.com/valkey-io/valkey-glide/go/v2/options"
+	"go.mongodb.org/mongo-driver/mongo"
 )
 
-func TransferHandler(ctx context.Context, valkeyClient *glide.Client, w http.ResponseWriter, r *http.Request) {
+type CreditHandler struct {
+	db    *mongo.Client
+	cache *glide.Client
+}
+
+func NewCreditHandler(db *mongo.Client, cache *glide.Client) *CreditHandler {
+	return &CreditHandler{
+		db:    db,
+		cache: cache,
+	}
+}
+
+type Response struct {
+	Status  uint8  `json:"status"`
+	Message string `json:"message"`
+}
+
+func (h *CreditHandler) TransferHandler(ctx context.Context, w http.ResponseWriter,
+	r *http.Request,
+) {
 	idempotencyKey := r.URL.Query().Get("IKey")
 	txnID := r.URL.Query().Get("tnxID")
-	amount := r.URL.Query().Get("amt")
-	from := r.URL.Query().Get("from")
-	to := r.URL.Query().Get("to")
-
-	senderKey := "uid:" + from + ":credits"
-	recieverKey := "uid:" + to + ":credits"
-
-	val, err := valkey.TransferCredits(ctx, valkeyClient, senderKey, recieverKey, idempotencyKey, "transfer:response", amount, txnID, from, to)
+	amount, err := strconv.Atoi(r.URL.Query().Get("amt"))
 	if err != nil {
-		w.Write([]byte("Error transferring the credits"))
+		http.Error(w, "The amount must be a valid integer", http.StatusBadRequest)
+		return
+	}
+	senderID := r.URL.Query().Get("from")
+	recieverID := r.URL.Query().Get("to")
+
+	creditService := services.NewCreditServce(h.db, h.cache)
+	val, err := creditService.TransferCredits(ctx, amount, senderID, recieverID, idempotencyKey, "payment:response", txnID)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+	if val == nil {
+		http.Error(w, "empty transfer result", http.StatusInternalServerError)
+		return
 	}
 
-	fmt.Println(val)
-
-	switch val.Code {
-	case "ALREADY_PROCESSED":
-		w.Write([]byte("The transaction is already processed for this trnasaction ID "))
-	case "TRANSFERRED":
-		keysAndIds := map[string]string{
-			"transfer:response": val.LastID,
-		}
-		fmt.Println(keysAndIds)
-
-		opts := options.NewXRangeOptions()
-		ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
-		defer cancel()
-		resp, err := valkeyClient.XRangeWithOptions(ctx, "transfer:response", options.StreamBoundary(val.LastID), options.StreamBoundary(val.LastID), *opts)
-		if err != nil {
-			log.Fatal(err)
-		}
-		found := false
-		for _, entry := range resp {
-			for _, field := range entry.Fields {
-				if field.Field == "txnId" && field.Value == txnID {
-					found = true
-					fmt.Println("Matched Entry ID:", entry.ID)
-					fmt.Println("Matched Entry Fields:", entry.Fields)
-					break
-				}
-			}
-			if found {
-				break
-			}
-		}
-
-		if found {
-			_, err = w.Write([]byte("hello transferred!!"))
-			if err != nil {
-				fmt.Printf("error while writing to the r.Writer: %v", err)
-			}
-		} else {
-			w.Write([]byte("Transaction ID not found in response"))
-		}
+	w.Header().Set("Content-Type", "application/json")
+	res, err := json.Marshal(Response{
+		Status:  200,
+		Message: "Transferred Succesfull",
+	})
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	if val.Code == "TRANSFERRED" {
+		w.Write([]byte(res))
 	}
 }
