@@ -10,6 +10,7 @@ import (
 	"github.com/shubhdevelop/distributed_payment_ledger/internal/cache/valkey"
 	"github.com/shubhdevelop/distributed_payment_ledger/internal/db"
 	"github.com/shubhdevelop/distributed_payment_ledger/internal/handlers"
+	"github.com/shubhdevelop/distributed_payment_ledger/internal/workers"
 )
 
 func main() {
@@ -28,6 +29,23 @@ func main() {
 	if err != nil {
 		fmt.Printf("Error loading scripts to Valkey: %w", err)
 	}
+
+	creditWorkerContext, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	workerValkeyClient1, err := valkey.ValkeyInit(ctx, "valkey", 6379)
+	if err != nil {
+		fmt.Printf("Error connecting worker1 to Valkey: %w", err)
+	}
+	workerValkeyClient2, err := valkey.ValkeyInit(ctx, "valkey", 6379)
+	if err != nil {
+		fmt.Printf("Error connecting worker2 to Valkey: %w", err)
+	}
+
+	creditWorker1 := workers.NewWorker(mongoClient, workerValkeyClient1)
+	creditWorker2 := workers.NewWorker(mongoClient, workerValkeyClient2)
+
+	go creditWorker1.StartWorker(creditWorkerContext, "credits-worker-1")
+	go creditWorker2.StartWorker(creditWorkerContext, "credits-worker-2")
 
 	router := http.NewServeMux()
 	router.HandleFunc("POST /transfer", func(w http.ResponseWriter, r *http.Request) {

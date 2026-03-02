@@ -9,6 +9,9 @@ services:
     volumes:
       - .:/app
       - /app/tmp
+    environment:
+      - STREAM_KEY="credit:transaction:events"
+      - CONSUMER_GROUP="credit-transaction-worker"
     depends_on:
       - valkey
       - mongo

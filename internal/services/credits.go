@@ -24,11 +24,10 @@ func NewCreditServce(db *mongo.Client, cache *glide.Client) *CreditService {
 
 func (s *CreditService) TransferCredits(
 	ctx context.Context,
-	amount int,
-	senderID, recieverID, idempotencyKey, streamKey, txnID string,
+	amount, senderID, recieverID, idempotencyKey, streamKey, txnID string,
 ) (*creditCache.CacheResult, error) {
-	senderKey := "uid:" + senderID + ":credits"
-	recieverKey := "uid:" + recieverID + ":credits"
+	senderKey := "uid:" + senderID + ":credit"
+	recieverKey := "uid:" + recieverID + ":credit"
 
 	cache := creditCache.NewCreditCache(s.cache)
 	val, err := cache.TransferCredits(

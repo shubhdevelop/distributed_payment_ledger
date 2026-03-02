@@ -35,6 +35,9 @@ local function transferCredits(keys, args)
 	local streamKey = keys[4]
 
 	local amt = tonumber(args[1])
+	if not amt then
+		return { -9, "INVALID_AMOUNT" }
+	end
 	local txn_id = args[2]
 	local sender_user_id = args[3]
 	local reciever_user_id = args[4]
@@ -65,7 +68,11 @@ local function transferCredits(keys, args)
 	if ReceiverMiss then
 		return { -1, "CACHE_MISS_RECIEVER" }
 	end
-
+	sender_balance = tonumber(sender_balance)
+	reciever_balance = tonumber(reciever_balance)
+	if not sender_balance or not reciever_balance then
+		return { -8, "CORRUPTED_BALANCE_STATE" }
+	end
 	if tonumber(sender_balance) < amt then
 		return { -2, "INSUFFICIENT_BALANCE" }
 	end
