@@ -44,7 +44,7 @@ func (h *CreditHandler) TransferHandler(ctx context.Context, w http.ResponseWrit
 	streamKey := os.Getenv("STREAM_KEY")
 	senderID := r.URL.Query().Get("from")
 	recieverID := r.URL.Query().Get("to")
-	creditService := services.NewCreditServce(h.db, h.cache)
+	creditService := services.NewCreditService(h.db, h.cache)
 	val, err := creditService.TransferCredits(ctx, amt, senderID, recieverID, idempotencyKey, streamKey, txnID)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
