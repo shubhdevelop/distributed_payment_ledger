@@ -1,4 +1,4 @@
-// Package creditCache provides basic constants and mathematical functions.
+// Package creditCache provides basic constants and mathematical functions
 package creditCache
 
 import (
@@ -51,8 +51,8 @@ func LoadValkeyScripts(ctx context.Context, client *glide.Client) error {
 	return nil
 }
 
-func (c *CreditCache) TransferCredits(ctx context.Context, amount int, fromKey, toKey, idempotencyKey, streamKey, txnID, senderUserID, reciverUserID string) (*CacheResult, error) {
-	val, err := c.cache.FCallWithKeysAndArgs(ctx, "transferCredits", []string{fromKey, toKey, idempotencyKey, streamKey}, []string{string(amount), txnID, senderUserID, reciverUserID})
+func (c *CreditCache) TransferCredits(ctx context.Context, amount string, fromKey, toKey, idempotencyKey, streamKey, txnID, senderUserID, reciverUserID string) (*CacheResult, error) {
+	val, err := c.cache.FCallWithKeysAndArgs(ctx, "transferCredits", []string{fromKey, toKey, idempotencyKey, streamKey}, []string{amount, txnID, senderUserID, reciverUserID})
 	if err != nil {
 		log.Printf("err execeuting transfer %v credits from this user %v to %v user %v", amount, fromKey, toKey, err)
 		return &CacheResult{}, err

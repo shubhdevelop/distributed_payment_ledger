@@ -24,17 +24,16 @@ func NewCreditServce(db *mongo.Client, cache *glide.Client) *CreditService {
 
 func (s *CreditService) TransferCredits(
 	ctx context.Context,
-	amount int,
-	senderID, recieverID, idempotencyKey, streamKey, txnID string,
+	amount, senderID, recieverID, idempotencyKey, streamKey, txnID string,
 ) (*creditCache.CacheResult, error) {
-	senderKey := "uid:" + senderID + ":credits"
-	recieverKey := "uid:" + recieverID + ":credits"
+	senderKey := "uid:" + senderID + ":credit"
+	recieverKey := "uid:" + recieverID + ":credit"
 
 	cache := creditCache.NewCreditCache(s.cache)
 	val, err := cache.TransferCredits(
 		ctx, amount,
 		senderKey, recieverKey, idempotencyKey,
-		"transfer:response", txnID, senderID, recieverID,
+		streamKey, txnID, senderID, recieverID,
 	)
 	if err != nil {
 		return nil, fmt.Errorf("error processing the transfer: %w", err)
@@ -50,7 +49,7 @@ func (s *CreditService) TransferCredits(
 	case "CACHE_MISS_RECIEVER":
 		return nil, fmt.Errorf("reciver: %s missing in the cahce", recieverID)
 	case "INSUFFICIENT_BALANCE":
-		return nil, fmt.Errorf("sender: %s has insufficient balance for transfer of amount: %d", senderID, amount)
+		return nil, fmt.Errorf("sender: %s has insufficient balance for transfer of amount: %s", senderID, amount)
 	case "TRANSFERRED":
 		// Successful transfer
 		return val, nil

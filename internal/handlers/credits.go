@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"net/http"
+	"os"
 	"strconv"
 
 	"github.com/shubhdevelop/distributed_payment_ledger/internal/services"
@@ -34,16 +35,17 @@ func (h *CreditHandler) TransferHandler(ctx context.Context, w http.ResponseWrit
 ) {
 	idempotencyKey := r.URL.Query().Get("IKey")
 	txnID := r.URL.Query().Get("tnxID")
-	amount, err := strconv.Atoi(r.URL.Query().Get("amt"))
+	amt := r.URL.Query().Get("amt")
+	_, err := strconv.Atoi(amt)
 	if err != nil {
 		http.Error(w, "The amount must be a valid integer", http.StatusBadRequest)
 		return
 	}
+	streamKey := os.Getenv("STREAM_KEY")
 	senderID := r.URL.Query().Get("from")
 	recieverID := r.URL.Query().Get("to")
-
 	creditService := services.NewCreditServce(h.db, h.cache)
-	val, err := creditService.TransferCredits(ctx, amount, senderID, recieverID, idempotencyKey, "payment:response", txnID)
+	val, err := creditService.TransferCredits(ctx, amt, senderID, recieverID, idempotencyKey, streamKey, txnID)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
