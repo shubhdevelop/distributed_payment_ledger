@@ -107,7 +107,7 @@ func (s *CreditService) GetOrHydrateBalance(ctx context.Context, userID string) 
 		Duration: 30,
 	})
 
-	for attempt := 0; attempt < maxHydrateRetries; attempt++ {
+	for range maxHydrateRetries {
 		if ctx.Err() != nil {
 			return -1, ctx.Err()
 		}
