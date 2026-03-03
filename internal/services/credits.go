@@ -90,10 +90,13 @@ func (s *CreditService) TransferCredits(
 	return nil, fmt.Errorf("unexpected transfer result code: %s", val.Code)
 }
 
+const maxHydrateRetries = 100 // ~10s at 100ms per retry
+
 func (s *CreditService) GetOrHydrateBalance(ctx context.Context, userID string) (int, error) {
 	creditCache := creditCache.NewCreditCache(s.cache)
-	res, err := creditCache.GetBalance(ctx, userID)
-	if err == nil {
+	balanceKey := "uid:" + userID + ":credit"
+	res, err := creditCache.GetBalance(ctx, balanceKey)
+	if err == nil && res.Code == "RETRIEVED" {
 		return int(res.Balance), nil
 	}
 	userRepo := repository.NewUserRepo(s.db)
@@ -104,27 +107,34 @@ func (s *CreditService) GetOrHydrateBalance(ctx context.Context, userID string) 
 		Duration: 30,
 	})
 
-	locked, err := s.cache.SetWithOptions(ctx, lockKey, "Processing", *opts)
-	if err != nil {
-		return -1, errors.New("error acquiring lock")
-	}
-	if !locked.IsNil() {
-		var bal int
-		defer func() {
-			// Use background context so lock is released even if request context is cancelled
-			_, _ = s.cache.Del(context.Background(), []string{lockKey})
-		}()
-		if bal, err = userRepo.GetUsersCreditsByID(ctx, userID); err != nil {
-			return -1, err
+	for attempt := 0; attempt < maxHydrateRetries; attempt++ {
+		if ctx.Err() != nil {
+			return -1, ctx.Err()
 		}
-		_, err = s.cache.Set(ctx, "uid:"+userID+":credit", strconv.Itoa(bal))
+		locked, err := s.cache.SetWithOptions(ctx, lockKey, "Processing", *opts)
 		if err != nil {
-			return -1, err
+			return -1, fmt.Errorf("error acquiring lock: %w", err)
 		}
-		return bal, nil
-	} else {
-		// Lock Failed: Someone else is fetching the data. Sleep 100ms and recursively retry.
-		time.Sleep(100 * time.Millisecond)
-		return s.GetOrHydrateBalance(ctx, userID)
+		if !locked.IsNil() {
+			var bal int
+			defer func() {
+				_, _ = s.cache.Del(context.Background(), []string{lockKey})
+			}()
+			if bal, err = userRepo.GetUsersCreditsByID(ctx, userID); err != nil {
+				return -1, err
+			}
+			_, err = s.cache.Set(ctx, "uid:"+userID+":credit", strconv.Itoa(bal))
+			if err != nil {
+				return -1, err
+			}
+			return bal, nil
+		}
+		// Lock held by another request; wait and retry
+		select {
+		case <-ctx.Done():
+			return -1, ctx.Err()
+		case <-time.After(100 * time.Millisecond):
+		}
 	}
+	return -1, errors.New("timed out waiting for hydrate lock")
 }
