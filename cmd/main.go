@@ -22,7 +22,8 @@ func main() {
 	if err != nil {
 		fmt.Printf("Error connecting to Valkey: %w", err)
 	}
-	mongoClient, err := db.MongoDBInit("mongodb://mongo:27017/")
+
+	mongoClient, err := db.MongoDBInit("mongodb://rootuser:rootpassword@mongo:27017")
 	if err != nil {
 		fmt.Printf("Error connecting to MongoDb: %w", err)
 	}
@@ -53,6 +54,10 @@ func main() {
 	router.HandleFunc("POST /transfer", func(w http.ResponseWriter, r *http.Request) {
 		creditHandler := handlers.NewCreditHandler(mongoClient, valkeyClient)
 		creditHandler.TransferHandler(ctx, w, r)
+	})
+	router.HandleFunc("POST /users", func(w http.ResponseWriter, r *http.Request) {
+		userHandler := handlers.NewUserHandler(mongoClient, valkeyClient)
+		userHandler.CreateUser(ctx, w, r)
 	})
 
 	err = http.ListenAndServe(":8080", router)

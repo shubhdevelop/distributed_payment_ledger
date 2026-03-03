@@ -37,8 +37,7 @@ services:
     restart: unless-stopped
     ports: ["27017:27017"]
     environment:
-      MONGO_INITDB_ROOT_USERNAME: rootuser
-      MONGO_INITDB_ROOT_PASSWORD: rootpassword
+      - DB_URI=mongodb://rootuser:rootpassword@mongo:27017
     volumes:
       - mongodb-data:/data/db
     networks:
