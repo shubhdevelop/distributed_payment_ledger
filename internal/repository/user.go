@@ -3,6 +3,7 @@ package repository
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"time"
 
@@ -39,24 +40,41 @@ func NewUserRepo(db *mongo.Client) *UserRepo {
 	}
 }
 
+func (u *UserRepo) getFilter(userID string) (bson.M, error) {
+	if objID, err := primitive.ObjectIDFromHex(userID); err == nil {
+		return bson.M{"_id": objID}, nil
+	}
+	return bson.M{"_id": userID}, nil
+}
+
 func (u *UserRepo) GetUserByID(ctx context.Context, userID string) (*User, error) {
+	filter, _ := u.getFilter(userID)
 	userCollection := u.db.Collection("user")
 	var user User
-	err := userCollection.FindOne(ctx, bson.M{"_id": userID}).Decode(&user)
+	err := userCollection.FindOne(ctx, filter).Decode(&user)
 	if err != nil {
+		if errors.Is(err, mongo.ErrNoDocuments) {
+			return nil, fmt.Errorf("user not found: %s", userID)
+		}
 		return nil, err
 	}
-	return &User{}, nil
+	return &user, nil
 }
 
 func (u *UserRepo) GetUsersCreditsByID(ctx context.Context, userID string) (int, error) {
+	filter, _ := u.getFilter(userID)
 	userCollection := u.db.Collection("user")
-	var user User
-	err := userCollection.FindOne(ctx, bson.M{"_id": userID}).Decode(&user)
+	var res struct {
+		Credits int `bson:"credits"`
+	}
+	err := userCollection.FindOne(ctx, filter).Decode(&res)
 	if err != nil {
+		if errors.Is(err, mongo.ErrNoDocuments) {
+			return -1, fmt.Errorf("user not found: %s", userID)
+		}
 		return -1, err
 	}
-	return user.Credits, nil
+	return res.Credits, nil
 }
 
 func (u *UserRepo) CreateUser(ctx context.Context, name string, credits int) (*User, error) {
@@ -69,7 +87,7 @@ func (u *UserRepo) CreateUser(ctx context.Context, name string, credits int) (*U
 	}
 	user.ID = result.InsertedID.(primitive.ObjectID)
 
-	return &User{}, nil
+	return user, nil
 }
 
 func (u *UserRepo) BatchUpdateUserCredits(ctx context.Context, userBalance *map[string]int) error {
@@ -77,9 +95,8 @@ func (u *UserRepo) BatchUpdateUserCredits(ctx context.Context, userBalance *map[
 
 	var models []mongo.WriteModel
 
-	for userID, amount := range *userBalance {
-
-		filter := bson.M{"_id": userID}
+	for userIDStr, amount := range *userBalance {
+		filter, _ := u.getFilter(userIDStr)
 
 		update := bson.M{
 			"$inc": bson.M{
@@ -103,6 +120,7 @@ func (u *UserRepo) BatchUpdateUserCredits(ctx context.Context, userBalance *map[
 				fmt.Println("Failed index:", writeErr.Index)
 			}
 		}
+		return err
 	}
 
 	return nil
