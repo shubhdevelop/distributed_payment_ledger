@@ -7,6 +7,7 @@ import (
 
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
+	"go.mongodb.org/mongo-driver/mongo/readpref"
 )
 
 func MongoDBInit(URI string) (*mongo.Client, error) {
@@ -22,11 +23,6 @@ func MongoDBInit(URI string) (*mongo.Client, error) {
 	if err != nil {
 		panic(err)
 	}
-	defer func() {
-		if err := client.Disconnect(context.TODO()); err != nil {
-			panic(err)
-		}
-	}()
-
+	client.Ping(ctx, &readpref.ReadPref{})
 	return client, nil
 }
